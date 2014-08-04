@@ -49,6 +49,8 @@ var MjpegProxy = exports.MjpegProxy = function(mjpegUrl) {
   self.boundary = null;
   self.globalMjpegResponse = null;
 
+  self.lastFrame = null;
+
   self.proxyRequest = function(req, res) {
 
     // There is already another client consuming the MJPEG response
@@ -66,6 +68,8 @@ var MjpegProxy = exports.MjpegProxy = function(mjpegUrl) {
         var lastByte1 = null;
         var lastByte2 = null;
 
+        var lastFrameChunk = new Buffer('');
+
         mjpegResponse.on('data', function(chunk) {
           // Fix CRLF issue on iOS 6+: boundary should be preceded by CRLF.
           if (lastByte1 != null && lastByte2 != null) {
@@ -82,6 +86,14 @@ var MjpegProxy = exports.MjpegProxy = function(mjpegUrl) {
 
           lastByte1 = chunk[chunk.length - 1];
           lastByte2 = chunk[chunk.length - 2];
+
+          lastFrameChunk = Buffer.concat([lastFrameChunk, chunk]);
+          var p = lastFrameChunk.indexOf('--' + self.boundary);
+          if (p >= 0) {
+            var lf = lastFrameChunk.slice(0, p);
+            self.lastFrame = lf.slice(lf.indexOf("\r\n\r\n")+4);
+            lastFrameChunk = lastFrameChunk.slice(p+2+self.boundary.length);
+          }
 
           for (var i = self.audienceResponses.length; i--;) {
             var res = self.audienceResponses[i];
