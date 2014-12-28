@@ -52,6 +52,9 @@ var MjpegProxy = exports.MjpegProxy = function(mjpegUrl) {
   self.lastFrame = null;
 
   self.proxyRequest = function(req, res) {
+    if ('user-agent' in req.headers && req.headers['user-agent'].match(/(msie|iemobile)/i)) {
+      return self.stillImage(req, res);
+    }
 
     // There is already another client consuming the MJPEG response
     if (self.audienceResponses.length > 0) {
